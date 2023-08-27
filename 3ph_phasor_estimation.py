@@ -10,8 +10,6 @@ import ntplib
 numSamples = 20
 
 
-
-
 async def applyHammingWindow_ph1(data):
     for i in range(numSamples):
         window = 1.5 - 0.2 * math.cos(2 * math.pi * i / (numSamples - 1))
@@ -42,7 +40,6 @@ def get_ntp_time():
 
     except (ntplib.NTPException, ConnectionError) as e:
         print('Error retrieving NTP time:', e)
-    
 
 
 if __name__ == '__main__':
@@ -79,6 +76,20 @@ if __name__ == '__main__':
 
                 frequency = 0.0
 
+                f_time_3 = 0.0
+                frequency_3 = 0.0
+                count_3 = 0
+                count = 0
+                count_3 = 0
+
+                lowPassAlpha_fre = 0.008
+                lowPassFrq = 0.0
+                lowPassFrq_3 = 0.0
+
+                highPassAlpha_freq = 0.01
+                highPassFrq = 0.0
+                highPassFrq_3 = 0.0
+
                 time = 0.0
 
                 # Sending a message from the client
@@ -101,7 +112,7 @@ if __name__ == '__main__':
                                 rawValue_ph1 = float(line.split(":")[1])
                             elif line.startswith("Ph2:"):
                                 rawValue_ph2 = float(line.split(":")[1])
-                                #print(rawValue_ph2)
+                                # print(rawValue_ph2)
                             elif line.startswith("Ph3:"):
                                 rawValue_ph3 = float(line.split(":")[1])
                             elif line.startswith("Data2:"):
@@ -109,6 +120,11 @@ if __name__ == '__main__':
                                 # print("Data from Serial Print 2:", frequency)
                                 # print("Data from Serial Print 2:", value)
                                 # rawValue = float(ser.readline().decode().strip())
+                            if (rawValue_ph2 >= 0 and prev_value < 0) or (rawValue_ph2 < 0 and prev_value >= 0):
+                                count = count + 1
+
+                            if (rawValue_ph3 >= 0 and prev_value_ph3 < 0) or (rawValue_ph3 < 0 and prev_value_ph3 >= 0):
+                                count_3 = count_3 + 1
 
                             prev_value_ph1 = rawValue_ph1
                             prev_value_ph2 = rawValue_ph2
@@ -144,6 +160,54 @@ if __name__ == '__main__':
 
                                 except (ntplib.NTPException, ConnectionError) as e:
                                     print('Error retrieving NTP time:', e)
+
+                            if count_3 == 1:
+                                f_time_3 = time.time() - f_time_3
+                                frequency_3 = 1/(f_time_3)
+                                f_time_3 = time.time()
+                                count_3 = 0
+
+                                lowPassFrq_3 = lowPassAlpha_fre * frequency_3 + \
+                                    (1 - lowPassAlpha_fre) * lowPassFrq_3
+
+                                highPassFrq_3 = highPassAlpha_freq * \
+                                    (lowPassFrq_3 - highPassFrq_3) + \
+                                    highPassFrq_3
+
+                            combined_message_3 = f"f3,{highPassFrq_3}"
+                            await websocket.send(combined_message_3)
+
+                            if count == 2:
+                                f_time = time.time() - f_time
+                                frequency = 1/(f_time)
+                                f_time = time.time()
+                                count = 0
+                                try:
+                                    # Connect to NTP server
+                                    ntp_client = ntplib.NTPClient()
+                                    response = ntp_client.request(
+                                        'pool.ntp.org', version=3, timeout=1)
+                                    ntp_time = datetime.datetime.fromtimestamp(
+                                        response.tx_time)
+                                    time_only = ntp_time.time()
+                                    adjusted_time = (datetime.datetime.combine(datetime.datetime.today(), time_only) +
+                                                     datetime.timedelta(hours=4, minutes=30)).time()
+                                    # print(adjusted_time)
+
+                                except (ntplib.NTPException, ConnectionError) as e:
+                                    print('Error retrieving NTP time:', e)
+
+                                lowPassFrq = lowPassAlpha_fre * frequency + \
+                                    (1 - lowPassAlpha_fre) * lowPassFrq
+
+                                highPassFrq = highPassAlpha_freq * \
+                                    (lowPassFrq - highPassFrq) + \
+                                    highPassFrq
+
+                                print("fre:", highPassFrq)
+
+                                combined_message_2 = f"f2,{highPassFrq},{adjusted_time}"
+                                await websocket.send(combined_message_2)
 
                         except ValueError:
                             print("Error: Could not convert data to integer")
@@ -222,7 +286,7 @@ if __name__ == '__main__':
 
                     scale_mag_ph1 = 1.21 * highPassFilteredMagnitude_ph1 - 0.86
                     scale_mag_ph2 = 1.23 * highPassFilteredMagnitude_ph2 - 0.86
-                    scale_mag_ph3 = 1.25 *  highPassFilteredMagnitude_ph3 - 0.86
+                    scale_mag_ph3 = 1.25 * highPassFilteredMagnitude_ph3 - 0.86
 
                     print("Scaled Magnitude Ph1", scale_mag_ph1)
                     print("Scaled Magnitude Ph2:", scale_mag_ph2)
