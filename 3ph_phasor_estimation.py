@@ -14,7 +14,7 @@ numSamples = 20
 
 async def applyHammingWindow_ph1(data):
     for i in range(numSamples):
-        window = 1.5 - 0.2 * math.cos(2 * math.pi * i / (numSamples - 1))
+        window = 1.5 - 0.8 * math.cos(2 * math.pi * i / (numSamples - 1))
         data[i] *= window
 
 
@@ -76,10 +76,16 @@ if __name__ == '__main__':
                 rawValue_ph1 = 0.0
                 rawValue_ph2 = 0.0
                 rawValue_ph3 = 0.0
+                
+                
+                prev_value_ph1 = 0.0
+                prev_value_ph2 = 0.0
+                prev_value_ph3 = 0.0
 
                 frequency = 0.0
 
                 time = 0.0
+                adjusted_time = 0.0
 
                 # Sending a message from the client
                 while True:
