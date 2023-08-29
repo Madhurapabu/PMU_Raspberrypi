@@ -12,6 +12,7 @@ numSamples = 20
 
 async def applyHammingWindow_ph1(data):
     for i in range(numSamples):
+      
         window = 0.56 - 0.42 * math.cos(2 * math.pi * i / (numSamples - 1))
         data[i] *= window
 
@@ -73,6 +74,11 @@ if __name__ == '__main__':
                 rawValue_ph1 = 0.0
                 rawValue_ph2 = 0.0
                 rawValue_ph3 = 0.0
+                
+                
+                prev_value_ph1 = 0.0
+                prev_value_ph2 = 0.0
+                prev_value_ph3 = 0.0
 
                 frequency = 0.0
                 
