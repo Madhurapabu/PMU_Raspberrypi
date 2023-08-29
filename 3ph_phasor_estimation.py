@@ -81,11 +81,11 @@ if __name__ == '__main__':
                 prev_value_ph3 = 0.0
 
                 frequency = 0.0
-                
                 frequency_2 = 0.0
+                frequency_3 = 0.0
 
                 f_time_3 = 0.0
-                frequency_3 = 0.0
+                
                 count_3 = 0
                 count = 0
                 count_3 = 0
@@ -132,14 +132,20 @@ if __name__ == '__main__':
                                 rawValue_ph3 = float(line.split(":")[1])
                             elif line.startswith("Data2:"):
                                 frequency = line.split(":")[1]
+                            elif line.startswith("Data3:"):
+                                frequency_2 = line.split(":")[1]
+                                #print(frequency_2)
+                            elif line.startswith("Data4:"):
+                                frequency_3 = line.split(":")[1]
+                                
                                 # print("Data from Serial Print 2:", frequency)
                                 # print("Data from Serial Print 2:", value)
                                 # rawValue = float(ser.readline().decode().strip())
-                            if (rawValue_ph2 >= 0 and prev_value < 0) or (rawValue_ph2 < 0 and prev_value >= 0):
-                                count = count + 1
+                            # if (rawValue_ph2 >= 0 and prev_value < 0) or (rawValue_ph2 < 0 and prev_value >= 0):
+                            #     count = count + 1
 
-                            if (rawValue_ph3 >= 0 and prev_value_ph3 < 0) or (rawValue_ph3 < 0 and prev_value_ph3 >= 0):
-                                count_3 = count_3 + 1
+                            # if (rawValue_ph3 >= 0 and prev_value_ph3 < 0) or (rawValue_ph3 < 0 and prev_value_ph3 >= 0):
+                            #     count_3 = count_3 + 1
 
                             prev_value_ph1 = rawValue_ph1
                             prev_value_ph2 = rawValue_ph2
@@ -160,7 +166,7 @@ if __name__ == '__main__':
                             imagPart_ph3[i] = rawValue_ph3 * \
                                 math.sin(2 * math.pi * i / numSamples)
 
-                            if (i == 12):
+                            if (i == 10):
                                 try:
                                     # Connect to NTP server
                                     ntp_client = ntplib.NTPClient()
@@ -176,34 +182,34 @@ if __name__ == '__main__':
                                 except (ntplib.NTPException, ConnectionError) as e:
                                     print('Error retrieving NTP time:', e)
 
-                            if count_3 == 2:
-                                f_time_3 = time.time() - f_time_3
-                                frequency_3 = 1/(f_time_3)
-                                f_time_3 = time.time()
-                                count_3 = 0
+                            # if count_3 == 2:
+                            #     f_time_3 = time.time() - f_time_3
+                            #     frequency_3 = 1/(f_time_3)
+                            #     f_time_3 = time.time()
+                            #     count_3 = 0
 
-                                lowPassFrq_3 = lowPassAlpha_fre * frequency_3 + \
-                                    (1 - lowPassAlpha_fre) * lowPassFrq_3
+                            #     lowPassFrq_3 = lowPassAlpha_fre * frequency_3 + \
+                            #         (1 - lowPassAlpha_fre) * lowPassFrq_3
 
-                                highPassFrq_3 = highPassAlpha_freq * \
-                                    (lowPassFrq_3 - highPassFrq_3) + \
-                                    highPassFrq_3
+                            #     highPassFrq_3 = highPassAlpha_freq * \
+                            #         (lowPassFrq_3 - highPassFrq_3) + \
+                            #         highPassFrq_3
 
                             # combined_message_3 = f"f3,{highPassFrq_3}"
                             # await websocket.send(combined_message_3)
 
-                            if count == 10:
-                                f_time = time.time() - f_time
-                                frequency_2 = 1/(f_time)
-                                f_time = time.time()
-                                count = 0
+                            # if count == 10:
+                            #     f_time = time.time() - f_time
+                            #     frequency_2 = 1/(f_time)
+                            #     f_time = time.time()
+                            #     count = 0
 
-                                lowPassFrq = lowPassAlpha_fre * frequency_2 + \
-                                    (1 - lowPassAlpha_fre) * lowPassFrq
+                            #     lowPassFrq = lowPassAlpha_fre * frequency_2 + \
+                            #         (1 - lowPassAlpha_fre) * lowPassFrq
 
-                                highPassFrq = highPassAlpha_freq * \
-                                    (lowPassFrq - highPassFrq) + \
-                                    highPassFrq
+                            #     highPassFrq = highPassAlpha_freq * \
+                            #         (lowPassFrq - highPassFrq) + \
+                            #         highPassFrq
 
                         except ValueError:
                             print("Error: Could not convert data to integer")
@@ -319,7 +325,7 @@ if __name__ == '__main__':
                     #print("Scaled Magnitude Ph3:", scale_mag_ph3)
                     #print("Scaled Freq", frequency)
 
-                    combined_message = f"v,{scale_mag_ph1},{scale_mag_ph2},{scale_mag_ph3},{frequency},{highPassFrq},{highPassFrq_3},{adjusted_time}"
+                    combined_message = f"v,{scale_mag_ph1},{scale_mag_ph2},{scale_mag_ph3},{frequency},{frequency_2},{frequency_3},{adjusted_time}"
                     # await websocket.send(str(scale_mag),str(frequency))  # Convert count to a string
                     print(combined_message)
                     await websocket.send(combined_message)
