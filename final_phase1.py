@@ -121,12 +121,12 @@ def find_zero_crossing_P_N(data):
 
 
 ################################ main code #####################################
-fs = 500  # sampling rate, must > base_frequency * 2
-theta = 30  # the angle of signal(voltage) you want to create(Degree)
+fs = 200  # sampling rate, must > base_frequency * 2
+theta = 20  # the angle of signal(voltage) you want to create(Degree)
 frequency_siganl = 59  # the frequency of the signal(voltage) you create (Hz)
 #vi = make_signal(fs, frequency_siganl, theta)  # making a wave using the parameter you give
 #data_per_set = int(fs * 0.1)  # 10% of signal(voltage) data, must > fs/base_frequency
-data_per_set = 64
+data_per_set = 20
 base_frequency = 50  # frequency base of country , area or you want ot it be (Hz)
 N = int(fs/base_frequency)  # N is the number of signal(voltage) data that is used to calculate a DFT value
 shift = 0  # shift points of vi array
@@ -143,14 +143,23 @@ async def connect():
             message = await websocket.recv()
             print("Message from server:",message)
             
-            vi = []
+            vi_1 = []
+            vi_2 = []
+            vi_3 = []
+            
+            ci_1 = []
+            ci_2 = []
+            ci_3 = []
+            
+            time_stamp_arr = []
+            
             raw_value = 0.00
             
             #Mag calculate parameters
             lowPassFilteredMagnitude_ph1 = 0.0
             highPassFilteredMagnitude_ph1 = 0.0 
-            highPassAlpha = 0.04
-            lowPassAlpha = 0.04
+            highPassAlpha = 0.5
+            lowPassAlpha = 0.5
             prev = 0.0
             timestamp = 0.0
             prv_time = 0.0
@@ -159,12 +168,48 @@ async def connect():
             flag_2 = 0
             mag_value = 0.0
             
+            #Mag calculate parameters phase_2
+            lowPassFilteredMagnitude_ph2 = 0.0
+            highPassFilteredMagnitude_ph2 = 0.0 
+            highPassAlpha_ph2 = 0.5
+            lowPassAlpha_ph2 = 0.5
+            prev_ph2 = 0.0
+            timestamp = 0.0
+            prv_time_ph2 = 0.0
+            count_ph2 = 0
+            flag_ph2 = 0
+            mag_value_ph2 = 0.0
+            
+            #Mag calculate parameters phase_3
+            lowPassFilteredMagnitude_ph3 = 0.0
+            highPassFilteredMagnitude_ph3 = 0.0 
+            highPassAlpha_ph3 = 0.5
+            lowPassAlpha_ph3 = 0.5
+            prev_ph3 = 0.0
+            prv_time_ph3 = 0.0
+            count_ph3 = 0
+            flag_ph3 = 0
+            mag_value_ph3 = 0.0
+########################################################################################################################            
+            #Current Mag calculate parameters
+            lowPassFilteredCurrent_ph1 = 0.0
+            highPassFilteredCurrent_ph1 = 0.0 
+            highPassAlpha_current = 0.04
+            lowPassAlpha_current = 0.04
+            prev_current = 0.0
+            timestamp = 0.0
+            prv_time_current = 0.0
+            count_current = 0
+            flag_current = 0
+            flag_2 = 0
+            mag_value_current = 0.0
+            
             
             #Fre calculate parameters
             lowPassFilteredFreq = 0.0
             highPassFilteredFreq = 0.0 
-            highPassAlpha_freq = 0.04
-            lowPassAlpha_freq = 0.04
+            highPassAlpha_freq = 0.4
+            lowPassAlpha_freq = 0.4
             prev_freq = 0.0
             timestamp_freq = 0.0
             prv_time_freq = 0.0
@@ -172,7 +217,31 @@ async def connect():
             flag = 0
             flag_2 = 0
             time_gap = 1
-            time_stamp_arr = []
+
+            
+            #Fre calculate parameters phase 2
+            lowPassFilteredFreq_ph2 = 0.0
+            highPassFilteredFreq_ph2 = 0.0 
+            highPassAlpha_freq_ph2 = 0.4
+            lowPassAlpha_freq_ph2 = 0.4
+            prev_freq_ph2 = 0.0
+            timestamp_freq_ph2 = 0.0
+            prv_time_freq_ph2 = 0.0
+            count_freq_ph2 = 0
+            flag_ph2 = 0
+            time_gap__ph2 = 1
+            
+            #Fre calculate parameters phase 3
+            lowPassFilteredFreq_ph3 = 0.0
+            highPassFilteredFreq_ph3 = 0.0 
+            highPassAlpha_freq_ph3 = 0.04
+            lowPassAlpha_freq_ph3 = 0.04
+            prev_freq_ph3 = 0.0
+            timestamp_freq_ph3 = 0.0
+            prv_time_freq_ph3 = 0.0
+            count_freq_ph3 = 0
+            flag_ph3 = 0
+            time_gap__ph3 = 1
             
             #phasor estimation parameter
             cos_fun = []
@@ -184,13 +253,28 @@ async def connect():
             #ROOCOF Calculation
             calculate_freq = 0.0
             roocof = 0.0
-
+            
+            #ROOCOF Calculation phase 2
+            calculate_freq_ph2 = 0.0
+            roocof_ph2 = 0.0
+            
+            #ROOCOF Calculation phase 2
+            calculate_freq_ph3 = 0.0
+            roocof_ph3 = 0.0
+            
             while True:
                 try:
                     data = ser.readline().decode().strip()  # Read data from Arduino
-                    new_data = float(data)
-                    vi.append(new_data)
-                    
+                    values = data.split(",")
+                    if len(values) == 6:
+                        vi_1.append(float(values[0]))
+                        vi_2.append(float(values[1]))
+                        vi_3.append(float(values[2]))
+                        
+                        ci_1.append(float(values[3]))
+                        ci_2.append(float(values[4]))
+                        ci_3.append(float(values[5]))
+                        
                     dt_1 = datetime.datetime.now(timezone.utc)
                     utc_time_1 = dt_1.replace(tzinfo=timezone.utc)
                     time_stamp_new = utc_time_1.timestamp() + 19800
@@ -202,51 +286,61 @@ async def connect():
                 except ValueError:
                     print("error")
                 
-                if len(vi) == (data_per_set/2):
+                if len(vi_1) == (data_per_set/2):
                     dt = datetime.datetime.now(timezone.utc)
                     utc_time = dt.replace(tzinfo=timezone.utc)
                     timestamp = utc_time.timestamp() + 19800
 
-                if len(vi) == (data_per_set):
-                    freq, Vrms, theta = Smart_DFT(fs, vi, data_per_set, base_frequency, N, shift) 
-                    all_zero_crossings_indices = find_zero_crossing(vi)   
+                if len(vi_1) == (data_per_set):
+                    freq_1, Vrms_1, theta_1 = Smart_DFT(fs, vi_1, data_per_set, base_frequency, N, shift) 
+                    freq_2, Vrms_2, theta_2 = Smart_DFT(fs, vi_2, data_per_set, base_frequency, N, shift) 
+                    freq_3, Vrms_3, theta_3 = Smart_DFT(fs, vi_3, data_per_set, base_frequency, N, shift) 
+                    
+                    all_zero_crossings_indices_1 = find_zero_crossing(vi_1)
+                    all_zero_crossings_indices_2 = find_zero_crossing(vi_2)
+                    all_zero_crossings_indices_3 = find_zero_crossing(vi_3)   
                                         
-                    all_zero_crossings_indices_PN = find_zero_crossing_P_N(vi)
+                    all_zero_crossings_indices_PN = find_zero_crossing_P_N(vi_1)
                     all_zero_crossings_indices_ref = find_zero_crossing_P_N(cos_fun)  
                            
-                    new_rms_voltage = Vrms[0]
+                    new_rms_ph1 = Vrms_1[0]
+                    new_rms_ph2 = Vrms_2[0]
+                    new_rms_ph3 = Vrms_3[0]
                     
-                    vi = []
+                    vi_1 = []
+                    vi_2 = []
+                    vi_3 = []
+                    
                     cos_fun = []
+                    ci = []
                     
                     #Magnitude Value Calculation
-                    lowPassFilteredMagnitude_ph1 = lowPassAlpha * new_rms_voltage + \
+                    lowPassFilteredMagnitude_ph1 = lowPassAlpha * new_rms_ph1 + \
                                     (1 - lowPassAlpha) * lowPassFilteredMagnitude_ph1
                                     
                     highPassFilteredMagnitude_ph1 = highPassAlpha * \
                                     (lowPassFilteredMagnitude_ph1 - highPassFilteredMagnitude_ph1) + \
                                     highPassFilteredMagnitude_ph1
                                     
-                    mag_value = round((highPassFilteredMagnitude_ph1+ 18), 3)
+                    mag_value = round((highPassFilteredMagnitude_ph1- 8.1), 3)
 
-                    if (((highPassFilteredMagnitude_ph1 - prev)/(timestamp - prv_time) < 1) and (count > 3))  :
-                        highPassAlpha = 0.005
-                        lowPassAlpha = 0.005
+                    if (((highPassFilteredMagnitude_ph1 - prev)/(timestamp - prv_time) < 0.25) and (count > 3))  :
+                        highPassAlpha = 0.008
+                        lowPassAlpha = 0.008
                         flag = 1
                     
-                    if ((abs((highPassFilteredMagnitude_ph1 - prev)/(timestamp - prv_time)) > 0.3) and (flag == 1)):
+                    if ((abs((highPassFilteredMagnitude_ph1 - prev)/(timestamp - prv_time)) > 0.2) and (flag == 1)):
                         highPassAlpha = 0.1
                         lowPassAlpha = 0.1
                     count  = count + 1 
                     prev = highPassFilteredMagnitude_ph1
                     prv_time = timestamp
                     
+                    #print(all_zero_crossings_indices_1)
+                    #Frequency Calcualtion phase 1
+                    if len(all_zero_crossings_indices_1) ==  6:
+                        time_gap = time_stamp_arr[all_zero_crossings_indices_1[3]] - time_stamp_arr[all_zero_crossings_indices_1[1]]
                     
-                    #Frequency Calcualtion
-                    if len(all_zero_crossings_indices) ==  3:
-                        time_gap = time_stamp_arr[all_zero_crossings_indices[2]] - time_stamp_arr[all_zero_crossings_indices[0]]
-
-                    time_stamp_arr = []
                     freq_new = 1/time_gap
                     
                     lowPassFilteredFreq = lowPassAlpha_freq * freq_new + \
@@ -257,17 +351,17 @@ async def connect():
                                     highPassFilteredFreq
                     
                     
-                    freq_val = round((highPassFilteredFreq+ 24.04), 2)
+                    freq_val = round((highPassFilteredFreq), 2)
                     
                     
-                    if (((highPassFilteredFreq - prev_freq)/(timestamp - prv_time_freq) < 0.009) and (count > 3))  :
-                        highPassAlpha_freq = 0.002
-                        lowPassAlpha_freq = 0.002
+                    if (((highPassFilteredFreq - prev_freq)/(timestamp - prv_time_freq) < 0.0009) and (count > 3))  :
+                        highPassAlpha_freq = 0.0003
+                        lowPassAlpha_freq = 0.0003
                         flag = 1
                     
                     if ((abs((highPassFilteredFreq - prev_freq)/(timestamp - prv_time_freq)) > 0.0005) and (flag == 1)):
-                        highPassAlpha_freq = 0.04
-                        lowPassAlpha_freq = 0.04
+                        highPassAlpha_freq = 0.009
+                        lowPassAlpha_freq = 0.009
                     
                     #ROOCOF Calculation
                     roocof = (freq_val - calculate_freq) / (timestamp - prv_time_freq)
@@ -278,26 +372,173 @@ async def connect():
                     prv_time_freq = timestamp
                     
                     #Phasor Calculation
-                    if((len(all_zero_crossings_indices_PN) ==  2) and (len(all_zero_crossings_indices_ref)== 2)):
-                        time_dif = (time_stamp_arr[all_zero_crossings_indices_ref[0]] - time_stamp_arr[all_zero_crossings_indices_PN[0]])
-                        time_dif_1 = (time_stamp_arr[all_zero_crossings_indices_ref[1]] - time_stamp_arr[all_zero_crossings_indices_PN[1]])
+                    # if((len(all_zero_crossings_indices_PN) ==  2) and (len(all_zero_crossings_indices_ref)== 2)):
+                    #     time_dif = (time_stamp_arr[all_zero_crossings_indices_ref[0]] - time_stamp_arr[all_zero_crossings_indices_PN[0]])
+                    #     time_dif_1 = (time_stamp_arr[all_zero_crossings_indices_ref[1]] - time_stamp_arr[all_zero_crossings_indices_PN[1]])
                     
-                        avg = (time_dif+time_dif_1)/2
+                    #     avg = (time_dif+time_dif_1)/2
 
-                    highPassFilteredPhase = highPassAlpha_phase * (time_dif - highPassFilteredPhase) + highPassFilteredPhase
+                    # highPassFilteredPhase = highPassAlpha_phase * (time_dif - highPassFilteredPhase) + highPassFilteredPhase
          
-                    phase_val_new = (highPassFilteredPhase*360*50)
+                    # phase_val_new = (highPassFilteredPhase*360*50)
                     
-                    if(phase_val_new >= 360):
-                        phase_val_new = phase_val_new - 360
+                    # if(phase_val_new >= 360):
+                    #     phase_val_new = phase_val_new - 360
                             
-                    if(phase_val_new <= -360):
-                        phase_val_new = phase_val_new + 360
+                    # if(phase_val_new <= -360):
+                    #     phase_val_new = phase_val_new + 360
                     
-               
-                    combined_message = f"v1,{mag_value},{phase_val_new},{freq_val},{roocof},{timestamp}"
+
+#################################################################################################################################################################################################
+                    #Magnitude Value Calculation_ph2
+                    lowPassFilteredMagnitude_ph2 = lowPassAlpha_ph2 * new_rms_ph2 + (1 - lowPassAlpha_ph2) * lowPassFilteredMagnitude_ph2
+                                    
+                    highPassFilteredMagnitude_ph2 = highPassAlpha_ph2 * (lowPassFilteredMagnitude_ph2 - highPassFilteredMagnitude_ph2) + highPassFilteredMagnitude_ph2
+                                    
+                    mag_value_ph2 = round((highPassFilteredMagnitude_ph2 - 25), 3)
+
+                    if (((highPassFilteredMagnitude_ph2 - prev_ph2)/(timestamp - prv_time_ph2) < 0.25) and (count_ph2 > 3))  :
+                        highPassAlpha_ph2 = 0.008
+                        lowPassAlpha_ph2 = 0.008
+                        flag_ph2 = 1
                     
-                    print(combined_message)        
+                    if ((abs((highPassFilteredMagnitude_ph2 - prev_ph2)/(timestamp - prv_time_ph2)) > 0.3) and (flag_ph2 == 1)):
+                        highPassAlpha_ph2 = 0.1
+                        lowPassAlpha_ph2 = 0.1
+                    count_ph2  = count_ph2 + 1 
+                    prev_ph2 = highPassFilteredMagnitude_ph2
+                    prv_time_ph2 = timestamp
+                    
+                    
+                    #Frequency Calcualtion phase 2
+                    if len(all_zero_crossings_indices_2) ==  6:
+                        time_gap__ph2 = time_stamp_arr[all_zero_crossings_indices_2[3]] - time_stamp_arr[all_zero_crossings_indices_2[1]]
+
+                    freq_new_ph2 = 1/time_gap__ph2
+                    
+                    lowPassFilteredFreq_ph2 = lowPassAlpha_freq_ph2 * freq_new_ph2 + \
+                                    (1 - lowPassAlpha_freq_ph2) * lowPassFilteredFreq_ph2
+                                    
+                    highPassFilteredFreq_ph2 = highPassAlpha_freq_ph2 * \
+                                    (lowPassFilteredFreq_ph2 - highPassFilteredFreq_ph2) + \
+                                    highPassFilteredFreq_ph2
+                    
+                    
+                    freq_val_ph2 = round((highPassFilteredFreq_ph2-0.5), 2)
+                    
+                    
+                    if (((highPassFilteredFreq_ph2 - prev_freq_ph2)/(timestamp - prv_time_freq_ph2) < 0.009) and (count_freq_ph2 > 3))  :
+                        highPassAlpha_freq_ph2 = 0.0003
+                        lowPassAlpha_freq_ph2 = 0.0003
+                        flag_ph2 = 1
+                    
+                    if ((abs((highPassFilteredFreq_ph2 - prev_freq_ph2)/(timestamp - prv_time_freq_ph2)) > 0.0005) and (flag_ph2 == 1)):
+                        highPassAlpha_freq_ph2 = 0.009
+                        lowPassAlpha_freq_ph2 = 0.009
+                    
+                    #ROOCOF Calculation
+                    roocof_ph2 = (freq_val_ph2 - calculate_freq_ph2) / (timestamp - prv_time_freq_ph2)
+                    calculate_freq_ph2 = freq_val_ph2  
+                    
+                    count_freq_ph2  = count_freq_ph2 + 1
+                    prev_freq_ph2 = highPassFilteredFreq_ph2                 
+                    prv_time_freq_ph2 = timestamp
+                    
+                    #Phasor Calculation
+                    # if((len(all_zero_crossings_indices_PN) ==  2) and (len(all_zero_crossings_indices_ref)== 2)):
+                    #     time_dif = (time_stamp_arr[all_zero_crossings_indices_ref[0]] - time_stamp_arr[all_zero_crossings_indices_PN[0]])
+                    #     time_dif_1 = (time_stamp_arr[all_zero_crossings_indices_ref[1]] - time_stamp_arr[all_zero_crossings_indices_PN[1]])
+                    
+                    #     avg = (time_dif+time_dif_1)/2
+
+                    # highPassFilteredPhase = highPassAlpha_phase * (time_dif - highPassFilteredPhase) + highPassFilteredPhase
+         
+                    # phase_val_new = (highPassFilteredPhase*360*50)
+                    
+                    # if(phase_val_new >= 360):
+                    #     phase_val_new = phase_val_new - 360
+                            
+                    # if(phase_val_new <= -360):
+                    #     phase_val_new = phase_val_new + 360
+
+#################################################################################################################################################################################################
+                    #Magnitude Value Calculation_ph3
+                    lowPassFilteredMagnitude_ph3 = lowPassAlpha_ph3 * new_rms_ph3 + (1 - lowPassAlpha_ph3) * lowPassFilteredMagnitude_ph3
+                                    
+                    highPassFilteredMagnitude_ph3 = highPassAlpha_ph3 * (lowPassFilteredMagnitude_ph3 - highPassFilteredMagnitude_ph3) + highPassFilteredMagnitude_ph3
+                                    
+                    mag_value_ph3 = round((highPassFilteredMagnitude_ph3 - 47), 3)
+
+                    if (((highPassFilteredMagnitude_ph3 - prev_ph3)/(timestamp - prv_time_ph3) < 1) and (count_ph3 > 3))  :
+                        highPassAlpha_ph3 = 0.005
+                        lowPassAlpha_ph3 = 0.005
+                        flag_ph3 = 1
+                    
+                    if ((abs((highPassFilteredMagnitude_ph3 - prev_ph3)/(timestamp - prv_time_ph3)) > 0.3) and (flag_ph3 == 1)):
+                        highPassAlpha_ph3 = 0.1
+                        lowPassAlpha_ph3 = 0.1
+                    count_ph3  = count_ph3 + 1 
+                    prev_ph3 = highPassFilteredMagnitude_ph3
+                    prv_time_ph3 = timestamp
+                    
+                    
+                    #Frequency Calcualtion
+                    if len(all_zero_crossings_indices_3) ==  6:
+                        time_gap__ph3 = time_stamp_arr[all_zero_crossings_indices_3[3]] - time_stamp_arr[all_zero_crossings_indices_3[1]]
+
+                    freq_new_ph3 = 1/time_gap__ph3
+                    
+                    lowPassFilteredFreq_ph3 = lowPassAlpha_freq_ph3 * freq_new_ph3 + \
+                                    (1 - lowPassAlpha_freq_ph3) * lowPassFilteredFreq_ph3
+                                    
+                    highPassFilteredFreq_ph3 = highPassAlpha_freq_ph3 * \
+                                    (lowPassFilteredFreq_ph3 - highPassFilteredFreq_ph3) + \
+                                    highPassFilteredFreq_ph3
+                    
+                    
+                    freq_val_ph3 = round((highPassFilteredFreq_ph3 - 0.8), 2)
+                    # print(freq_val_ph3)
+                    
+                    if (((highPassFilteredFreq_ph3 - prev_freq_ph3)/(timestamp - prv_time_freq_ph3) < 0.009) and (count_freq_ph3 > 3))  :
+                        highPassAlpha_freq_ph3 = 0.0003
+                        lowPassAlpha_freq_ph3 = 0.0003
+                        flag_ph3 = 1
+                    
+                    if ((abs((highPassFilteredFreq_ph3 - prev_freq_ph3)/(timestamp - prv_time_freq_ph3)) > 0.0005) and (flag_ph3 == 1)):
+                        highPassAlpha_freq_ph3 = 0.009
+                        lowPassAlpha_freq_ph3 = 0.009
+                    
+                    #ROOCOF Calculation phase 3
+                    roocof_ph3 = (freq_val_ph3 - calculate_freq_ph3) / (timestamp - prv_time_freq_ph3)
+                    calculate_freq_ph3 = freq_val_ph3  
+                    
+                    count_freq_ph3  = count_freq_ph3 + 1
+                    prev_freq_ph3 = highPassFilteredFreq_ph3                 
+                    prv_time_freq_ph3 = timestamp
+                    
+                    #Phasor Calculation
+                    # if((len(all_zero_crossings_indices_PN) ==  2) and (len(all_zero_crossings_indices_ref)== 2)):
+                    #     time_dif = (time_stamp_arr[all_zero_crossings_indices_ref[0]] - time_stamp_arr[all_zero_crossings_indices_PN[0]])
+                    #     time_dif_1 = (time_stamp_arr[all_zero_crossings_indices_ref[1]] - time_stamp_arr[all_zero_crossings_indices_PN[1]])
+                    
+                    #     avg = (time_dif+time_dif_1)/2
+
+                    # highPassFilteredPhase = highPassAlpha_phase * (time_dif - highPassFilteredPhase) + highPassFilteredPhase
+         
+                    # phase_val_new = (highPassFilteredPhase*360*50)
+                    
+                    # if(phase_val_new >= 360):
+                    #     phase_val_new = phase_val_new - 360
+                            
+                    # if(phase_val_new <= -360):
+                    #     phase_val_new = phase_val_new + 360
+
+
+                    time_stamp_arr = []
+                    combined_message = f"v1,{mag_value},{mag_value_ph2},{mag_value_ph3},{1},{2},{3},{freq_val},{freq_val_ph2},{freq_val_ph3},{roocof},{roocof_ph2},{roocof_ph3},{2},{2.1},{2.2},{2.3},{2.4},{2.5}{timestamp}"
+                    
+                    #print(combined_message)
+      
                           
                     await websocket.send(combined_message)
 asyncio.get_event_loop().run_until_complete(connect())
