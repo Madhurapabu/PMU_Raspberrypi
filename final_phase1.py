@@ -197,8 +197,8 @@ async def connect():
             #Current Mag calculate parameters
             lowPassFilteredCurrent_ph1 = 0.0
             highPassFilteredCurrent_ph1 = 0.0 
-            highPassAlpha_current = 0.04
-            lowPassAlpha_current = 0.04
+            highPassAlpha_current = 0.1
+            lowPassAlpha_current = 0.1
             prev_current = 0.0
             timestamp = 0.0
             prv_time_current = 0.0
@@ -206,6 +206,28 @@ async def connect():
             flag_current = 0
             flag_2 = 0
             mag_value_current = 0.0
+            
+            #Current Mag calculate parameters
+            lowPassFilteredCurrent_ph2 = 0.0
+            highPassFilteredCurrent_ph2 = 0.0 
+            highPassAlpha_current_ph2 = 0.1
+            lowPassAlpha_current_ph2 = 0.1
+            prev_current_ph2 = 0.0
+            prv_time_current_ph2 = 0.0
+            count_current_ph2 = 0
+            flag_current_ph2 = 0
+            mag_value_current_ph2 = 0.0
+            
+            lowPassFilteredCurrent_ph3 = 0.0
+            highPassFilteredCurrent_ph3 = 0.0 
+            highPassAlpha_current_ph3 = 0.04
+            lowPassAlpha_current_ph3 = 0.04
+            prev_current_ph3 = 0.0
+            prv_time_current_ph3 = 0.0
+            count_current_ph3 = 0
+            flag_current_ph3 = 0
+            mag_value_current_ph3 = 0.0
+            
             
             
             #Fre calculate parameters
@@ -274,6 +296,11 @@ async def connect():
             phase_old_2 = 0.0 
             phase_old_3 = 0.0
             
+            phase_old_current_1 = 0.0
+            phase_old_current_2 = 0.0 
+            phase_old_current_3 = 0.0
+            
+            
             while True:
                 try:
                     data = ser.readline().decode().strip()  # Read data from Arduino
@@ -303,10 +330,14 @@ async def connect():
                     utc_time = dt.replace(tzinfo=timezone.utc)
                     timestamp = utc_time.timestamp() + 19800
 
-                if len(vi_1) == (data_per_set):
+                if ((len(ci_2) == (data_per_set)) and (len(ci_3) == data_per_set)):
                     freq_1, Vrms_1, theta_1 = Smart_DFT(fs, vi_1, data_per_set, base_frequency, N, shift) 
                     freq_2, Vrms_2, theta_2 = Smart_DFT(fs, vi_2, data_per_set, base_frequency, N, shift) 
-                    freq_3, Vrms_3, theta_3 = Smart_DFT(fs, vi_3, data_per_set, base_frequency, N, shift) 
+                    freq_3, Vrms_3, theta_3 = Smart_DFT(fs, vi_3, data_per_set, base_frequency, N, shift)
+                    
+                    freq_c_1, Crms_1, theta_c1 = Smart_DFT(fs, ci_1, data_per_set, base_frequency, N, shift) 
+                    freq_c_2, Crms_2, theta_c2 = Smart_DFT(fs, ci_1, data_per_set, base_frequency, N, shift)
+                    freq_c_3, Crms_3, theta_c3 = Smart_DFT(fs, ci_1, data_per_set, base_frequency, N, shift)
                     
                     all_zero_crossings_indices_1 = find_zero_crossing(vi_1)
                     all_zero_crossings_indices_2 = find_zero_crossing(vi_2)
@@ -325,14 +356,44 @@ async def connect():
                     new_rms_ph2 = Vrms_2[0]
                     new_rms_ph3 = Vrms_3[0]
                     
+                    new_crms_ph1 = Crms_1[0]
+                    new_crms_ph2 = Crms_2[0]
+                    new_crms_ph3 = Crms_3[0]
+                    
+                    
                     vi_1 = []
                     vi_2 = []
                     vi_3 = []
                     
                     cos_fun = []
-                    ci = []
+                    ci_1 = []
+                    ci_2 = []
+                    ci_3 = []
                     
-                    #Magnitude Value Calculation
+                    #Current Magnitude Value Calculation
+                    lowPassFilteredCurrent_ph1 = lowPassAlpha_current * new_crms_ph1 + \
+                                    (1 - lowPassAlpha_current) * lowPassFilteredCurrent_ph1
+                                    
+                    highPassFilteredCurrent_ph1 = highPassAlpha_current * \
+                                    (lowPassFilteredCurrent_ph1 - highPassFilteredCurrent_ph1) + \
+                                    highPassFilteredCurrent_ph1
+                                    
+                    mag_value_current = round((highPassFilteredCurrent_ph1), 3)
+
+                    if (((highPassFilteredCurrent_ph1 - prev_current)/(timestamp - prv_time_current) < 0.25) and (count_current > 3))  :
+                        highPassAlpha_current = 0.008
+                        lowPassAlpha_current = 0.008
+                        flag_current = 1
+                    
+                    if ((abs((highPassFilteredCurrent_ph1 - prev_current)/(timestamp - prv_time_current)) > 0.2) and (flag_current == 1)):
+                        highPassAlpha_current = 0.1
+                        lowPassAlpha_current = 0.1
+                    count_current  = count_current + 1 
+                    prev_current = highPassFilteredCurrent_ph1
+                    prev_current = timestamp
+                    
+                    
+                    ####Voltage mag calculation phase 1
                     lowPassFilteredMagnitude_ph1 = lowPassAlpha * new_rms_ph1 + \
                                     (1 - lowPassAlpha) * lowPassFilteredMagnitude_ph1
                                     
@@ -340,14 +401,14 @@ async def connect():
                                     (lowPassFilteredMagnitude_ph1 - highPassFilteredMagnitude_ph1) + \
                                     highPassFilteredMagnitude_ph1
                                     
-                    mag_value = round((highPassFilteredMagnitude_ph1- 8.1), 3)
+                    mag_value = round((highPassFilteredMagnitude_ph1- 17.1), 3)
 
                     if (((highPassFilteredMagnitude_ph1 - prev)/(timestamp - prv_time) < 0.25) and (count > 3))  :
                         highPassAlpha = 0.008
                         lowPassAlpha = 0.008
                         flag = 1
                     
-                    if ((abs((highPassFilteredMagnitude_ph1 - prev)/(timestamp - prv_time)) > 0.2) and (flag == 1)):
+                    if ((abs((highPassFilteredMagnitude_ph1 - prev)/(timestamp - prv_time)) > 0.9) and (flag == 1)):
                         highPassAlpha = 0.1
                         lowPassAlpha = 0.1
                     count  = count + 1 
@@ -369,7 +430,7 @@ async def connect():
                                     highPassFilteredFreq
                     
                     
-                    freq_val = round((highPassFilteredFreq), 2)
+                    freq_val = round((highPassFilteredFreq -25), 2)
                     
                     
                     if (((highPassFilteredFreq - prev_freq)/(timestamp - prv_time_freq) < 0.0009) and (count > 3))  :
@@ -389,25 +450,6 @@ async def connect():
                     prev_freq = highPassFilteredFreq                 
                     prv_time_freq = timestamp
                     
-                    #Phasor Calculation phase 1
-                    # print(all_zero_crossings_indices_PN)
-                    # print(all_zero_crossings_indices_ref)
-                    # if((len(all_zero_crossings_indices_PN) ==  3) and (len(all_zero_crossings_indices_ref)== 3)):
-                    #     time_dif = (time_stamp_arr[all_zero_crossings_indices_ref[0]] - time_stamp_arr[all_zero_crossings_indices_PN[0]])
-                    #     time_dif_1 = (time_stamp_arr[all_zero_crossings_indices_ref[1]] - time_stamp_arr[all_zero_crossings_indices_PN[1]])
-                    
-                    #     avg = (time_dif+time_dif_1)/2
-
-                    # highPassFilteredPhase = highPassAlpha_phase * (time_dif - highPassFilteredPhase) + highPassFilteredPhase
-         
-                    # phase_val_new = (time_dif*360*50)
-                    
-                    # if(phase_val_new >= 360):
-                    #     phase_val_new = phase_val_new - 360
-                            
-                    # if(phase_val_new <= -360):
-                    #     phase_val_new = phase_val_new + 360
-                    
             
 #################################################################################################################################################################################################
                     #Magnitude Value Calculation_ph2
@@ -415,7 +457,7 @@ async def connect():
                                     
                     highPassFilteredMagnitude_ph2 = highPassAlpha_ph2 * (lowPassFilteredMagnitude_ph2 - highPassFilteredMagnitude_ph2) + highPassFilteredMagnitude_ph2
                                     
-                    mag_value_ph2 = round((highPassFilteredMagnitude_ph2 - 25), 3)
+                    mag_value_ph2 = round((highPassFilteredMagnitude_ph2 - 31), 3)
 
                     if (((highPassFilteredMagnitude_ph2 - prev_ph2)/(timestamp - prv_time_ph2) < 0.25) and (count_ph2 > 3))  :
                         highPassAlpha_ph2 = 0.008
@@ -428,6 +470,29 @@ async def connect():
                     count_ph2  = count_ph2 + 1 
                     prev_ph2 = highPassFilteredMagnitude_ph2
                     prv_time_ph2 = timestamp
+                    
+                    
+                    #Current Magnitude Value Calculation
+                    lowPassFilteredCurrent_ph2 = lowPassAlpha_current_ph2 * new_crms_ph2 + \
+                                    (1 - lowPassAlpha_current_ph2) * lowPassFilteredCurrent_ph2
+                                    
+                    highPassFilteredCurrent_ph2 = highPassAlpha_current_ph2 * \
+                                    (lowPassFilteredCurrent_ph2 - highPassFilteredCurrent_ph2) + \
+                                    highPassFilteredCurrent_ph2
+                                    
+                    mag_value_current_ph2 = round((highPassFilteredCurrent_ph2), 3)
+
+                    if (((highPassFilteredCurrent_ph2 - prev_current_ph2)/(timestamp - prv_time_current_ph2) < 0.25) and (count_current_ph2 > 3))  :
+                        highPassAlpha_current_ph2 = 0.008
+                        lowPassAlpha_current_ph2 = 0.008
+                        flag_current_ph2 = 1
+                    
+                    if ((abs((highPassFilteredCurrent_ph2 - prev_current_ph2)/(timestamp - prv_time_current_ph2)) > 0.2) and (flag_current_ph2 == 1)):
+                        highPassAlpha_current_ph2 = 0.1
+                        lowPassAlpha_current_ph2 = 0.1
+                    count_current_ph2  = count_current_ph2 + 1 
+                    prev_current_ph2 = highPassFilteredCurrent_ph2
+                    prev_current_ph2 = timestamp
                     
                     
                     #Frequency Calcualtion phase 2
@@ -487,7 +552,7 @@ async def connect():
                                     
                     highPassFilteredMagnitude_ph3 = highPassAlpha_ph3 * (lowPassFilteredMagnitude_ph3 - highPassFilteredMagnitude_ph3) + highPassFilteredMagnitude_ph3
                                     
-                    mag_value_ph3 = round((highPassFilteredMagnitude_ph3 - 47), 3)
+                    mag_value_ph3 = round((highPassFilteredMagnitude_ph3 - 74), 3)
 
                     if (((highPassFilteredMagnitude_ph3 - prev_ph3)/(timestamp - prv_time_ph3) < 1) and (count_ph3 > 3))  :
                         highPassAlpha_ph3 = 0.005
@@ -500,6 +565,28 @@ async def connect():
                     count_ph3  = count_ph3 + 1 
                     prev_ph3 = highPassFilteredMagnitude_ph3
                     prv_time_ph3 = timestamp
+                    
+                    #Current Magnitude Value Calculation
+                    lowPassFilteredCurrent_ph3 = lowPassAlpha_current_ph3 * new_crms_ph3 + \
+                                    (1 - lowPassAlpha_current_ph3) * lowPassFilteredCurrent_ph3
+                                    
+                    highPassFilteredCurrent_ph3 = highPassAlpha_current_ph3 * \
+                                    (lowPassFilteredCurrent_ph3 - highPassFilteredCurrent_ph3) + \
+                                    highPassFilteredCurrent_ph3
+                                    
+                    mag_value_current_ph3 = round((highPassFilteredCurrent_ph3), 3)
+
+                    if (((highPassFilteredCurrent_ph3 - prev_current_ph3)/(timestamp - prv_time_current_ph3) < 0.25) and (count_current_ph3 > 3))  :
+                        highPassAlpha_current_ph3 = 0.008
+                        lowPassAlpha_current_ph3 = 0.008
+                        flag_current_ph3 = 1
+                    
+                    if ((abs((highPassFilteredCurrent_ph3 - prev_current_ph3)/(timestamp - prv_time_current_ph3)) > 0.2) and (flag_current_ph3 == 1)):
+                        highPassAlpha_current_ph3 = 0.1
+                        lowPassAlpha_current_ph3 = 0.1
+                    count_current_ph3  = count_current_ph3 + 1 
+                    prev_current_ph3 = highPassFilteredCurrent_ph3
+                    prev_current_ph3 = timestamp
                     
                     
                     #Frequency Calcualtion
@@ -556,7 +643,15 @@ async def connect():
                     phase_val_new_ph2 = np.rad2deg((theta_1[0]) - theta_2[0]) + 120
                     phase_val_new_ph3 = np.rad2deg((theta_2[0]) - theta_3[0]) - 120
                     
-                   
+                    # phase_val_Current_new_ph1 = np.rad2deg((theta_c3[0]) - theta_c1[0])
+                    # phase_val_Current_new_ph2 = np.rad2deg((theta_c1[0]) - theta_c2[0]) 
+                    # phase_val_Current_new_ph3 = np.rad2deg((theta_c2[0]) - theta_c3[0]) 
+                    
+                    phase_val_Current_new_ph1 = np.rad2deg(theta_c1[0])
+                    phase_val_Current_new_ph2 = np.rad2deg(theta_c2[0])
+                    phase_val_Current_new_ph3 = np.rad2deg(theta_c3[0])
+                    
+                    print(phase_val_Current_new_ph1,",",phase_val_Current_new_ph2,",",phase_val_Current_new_ph3)
                     
                     if (phase_val_new > 200):
                         phase_val_new = phase_old
@@ -573,8 +668,8 @@ async def connect():
                     phase_old_3 = phase_val_new_ph3
 
                     time_stamp_arr = []
-                    combined_message = f"v1,{mag_value},{mag_value_ph2},{mag_value_ph3},{phase_val_new},{phase_val_new_ph2},{phase_val_new_ph3},{freq_val},{freq_val_ph2},{freq_val_ph3},{roocof},{roocof_ph2},{roocof_ph3},{2},{2.1},{2.2},{2.3},{2.4},{2.5},{timestamp}"
-                    
+                    combined_message = f"v1,{mag_value},{mag_value_ph2},{mag_value_ph3},{phase_val_new},{phase_val_new_ph2},{phase_val_new_ph3},{freq_val},{freq_val_ph2},{freq_val_ph3},{roocof},{roocof_ph2},{roocof_ph3},{mag_value_current},{mag_value_current_ph2},{mag_value_current_ph3},{2.3},{2.4},{2.5},{timestamp}"
+                    #print(mag_value_current)
   
 
                         
