@@ -190,6 +190,9 @@ async def connect():
             count_ph3 = 0
             flag_ph3 = 0
             mag_value_ph3 = 0.0
+            
+            time_dif = 0.0
+            time_dif_ph2 = 0.0
 ########################################################################################################################            
             #Current Mag calculate parameters
             lowPassFilteredCurrent_ph1 = 0.0
@@ -247,8 +250,12 @@ async def connect():
             cos_fun = []
             clock_time = 0
             highPassFilteredPhase = 0.0 
-            highPassAlpha_phase= 0.04
+            highPassAlpha_phase= 0.0001
             phase_val_new = 0.0
+            
+            highPassFilteredPhase_ph2 = 0.0 
+            phase_val_new_ph2 = 0.0
+            phase_val_new_ph3 = 0.0
             
             #ROOCOF Calculation
             calculate_freq = 0.0
@@ -261,6 +268,11 @@ async def connect():
             #ROOCOF Calculation phase 2
             calculate_freq_ph3 = 0.0
             roocof_ph3 = 0.0
+            
+            
+            phase_old = 0.0
+            phase_old_2 = 0.0 
+            phase_old_3 = 0.0
             
             while True:
                 try:
@@ -280,7 +292,7 @@ async def connect():
                     time_stamp_new = utc_time_1.timestamp() + 19800
                     time_stamp_arr.append(time_stamp_new)
     
-                    cos_fun.append(230 * np.cos(2*np.pi*25*clock_time))
+                    cos_fun.append(230 * np.cos(2*np.pi*50*time_stamp_new))
                     clock_time = clock_time + 0.002
                     
                 except ValueError:
@@ -302,6 +314,12 @@ async def connect():
                                         
                     all_zero_crossings_indices_PN = find_zero_crossing_P_N(vi_1)
                     all_zero_crossings_indices_ref = find_zero_crossing_P_N(cos_fun)  
+                    
+                    all_zero_crossings_indices_PN_ph2= find_zero_crossing_P_N(vi_2)
+                    all_zero_crossings_indices_PN_ph3= find_zero_crossing_P_N(vi_3)
+                    
+                    # print(vi_1)
+                    # print(cos_fun,"Ref signal")
                            
                     new_rms_ph1 = Vrms_1[0]
                     new_rms_ph2 = Vrms_2[0]
@@ -371,8 +389,10 @@ async def connect():
                     prev_freq = highPassFilteredFreq                 
                     prv_time_freq = timestamp
                     
-                    #Phasor Calculation
-                    # if((len(all_zero_crossings_indices_PN) ==  2) and (len(all_zero_crossings_indices_ref)== 2)):
+                    #Phasor Calculation phase 1
+                    # print(all_zero_crossings_indices_PN)
+                    # print(all_zero_crossings_indices_ref)
+                    # if((len(all_zero_crossings_indices_PN) ==  3) and (len(all_zero_crossings_indices_ref)== 3)):
                     #     time_dif = (time_stamp_arr[all_zero_crossings_indices_ref[0]] - time_stamp_arr[all_zero_crossings_indices_PN[0]])
                     #     time_dif_1 = (time_stamp_arr[all_zero_crossings_indices_ref[1]] - time_stamp_arr[all_zero_crossings_indices_PN[1]])
                     
@@ -380,7 +400,7 @@ async def connect():
 
                     # highPassFilteredPhase = highPassAlpha_phase * (time_dif - highPassFilteredPhase) + highPassFilteredPhase
          
-                    # phase_val_new = (highPassFilteredPhase*360*50)
+                    # phase_val_new = (time_dif*360*50)
                     
                     # if(phase_val_new >= 360):
                     #     phase_val_new = phase_val_new - 360
@@ -388,7 +408,7 @@ async def connect():
                     # if(phase_val_new <= -360):
                     #     phase_val_new = phase_val_new + 360
                     
-
+            
 #################################################################################################################################################################################################
                     #Magnitude Value Calculation_ph2
                     lowPassFilteredMagnitude_ph2 = lowPassAlpha_ph2 * new_rms_ph2 + (1 - lowPassAlpha_ph2) * lowPassFilteredMagnitude_ph2
@@ -444,22 +464,22 @@ async def connect():
                     prev_freq_ph2 = highPassFilteredFreq_ph2                 
                     prv_time_freq_ph2 = timestamp
                     
-                    #Phasor Calculation
-                    # if((len(all_zero_crossings_indices_PN) ==  2) and (len(all_zero_crossings_indices_ref)== 2)):
-                    #     time_dif = (time_stamp_arr[all_zero_crossings_indices_ref[0]] - time_stamp_arr[all_zero_crossings_indices_PN[0]])
-                    #     time_dif_1 = (time_stamp_arr[all_zero_crossings_indices_ref[1]] - time_stamp_arr[all_zero_crossings_indices_PN[1]])
+                    #Phasor Calculation phase 2
+                    if((len(all_zero_crossings_indices_PN_ph2) ==  3) and (len(all_zero_crossings_indices_ref)== 3)):
+                        time_dif_ph2 = (time_stamp_arr[all_zero_crossings_indices_ref[0]] - time_stamp_arr[all_zero_crossings_indices_PN[0]])
+                        time_dif_1 = (time_stamp_arr[all_zero_crossings_indices_ref[1]] - time_stamp_arr[all_zero_crossings_indices_PN[1]])
                     
-                    #     avg = (time_dif+time_dif_1)/2
+                        avg = (time_dif+time_dif_1)/2
 
-                    # highPassFilteredPhase = highPassAlpha_phase * (time_dif - highPassFilteredPhase) + highPassFilteredPhase
+                    highPassFilteredPhase_ph2 = highPassAlpha_phase * (time_dif_ph2 - highPassFilteredPhase_ph2) + highPassFilteredPhase_ph2
          
-                    # phase_val_new = (highPassFilteredPhase*360*50)
+                    phase_val_new_ph2 = (time_dif_ph2*360*50)
                     
-                    # if(phase_val_new >= 360):
-                    #     phase_val_new = phase_val_new - 360
+                    if(phase_val_new >= 360):
+                        phase_val_new_ph2 = phase_val_new_ph2 - 360
                             
-                    # if(phase_val_new <= -360):
-                    #     phase_val_new = phase_val_new + 360
+                    if(phase_val_new <= -360):
+                        phase_val_new_ph2 = phase_val_new_ph2 + 360
 
 #################################################################################################################################################################################################
                     #Magnitude Value Calculation_ph3
@@ -532,12 +552,34 @@ async def connect():
                             
                     # if(phase_val_new <= -360):
                     #     phase_val_new = phase_val_new + 360
-
+                    phase_val_new = np.rad2deg((theta_3[0]) - theta_1[0])
+                    phase_val_new_ph2 = np.rad2deg((theta_1[0]) - theta_2[0]) + 120
+                    phase_val_new_ph3 = np.rad2deg((theta_2[0]) - theta_3[0]) - 120
+                    
+                   
+                    
+                    if (phase_val_new > 200):
+                        phase_val_new = phase_old
+                    if phase_val_new_ph2 > 300:
+                        phase_val_new_ph2 = phase_old_2
+                    if phase_val_new_ph3 < -200:
+                        phase_val_new_ph3 = phase_old_3
+                    
+                    
+                    highPassFilteredPhase_ph2 = 0.0001 * phase_val_new_ph2 + (1 - highPassFilteredPhase_ph2) * highPassFilteredPhase_ph2
+                    
+                    phase_old = phase_val_new
+                    phase_old_2 = phase_val_new_ph2
+                    phase_old_3 = phase_val_new_ph3
 
                     time_stamp_arr = []
-                    combined_message = f"v1,{mag_value},{mag_value_ph2},{mag_value_ph3},{1},{2},{3},{freq_val},{freq_val_ph2},{freq_val_ph3},{roocof},{roocof_ph2},{roocof_ph3},{2},{2.1},{2.2},{2.3},{2.4},{2.5}{timestamp}"
+                    combined_message = f"v1,{mag_value},{mag_value_ph2},{mag_value_ph3},{phase_val_new},{phase_val_new_ph2},{phase_val_new_ph3},{freq_val},{freq_val_ph2},{freq_val_ph3},{roocof},{roocof_ph2},{roocof_ph3},{2},{2.1},{2.2},{2.3},{2.4},{2.5},{timestamp}"
                     
-                    #print(combined_message)
+  
+
+                        
+                    
+                    # print(np.rad2deg(theta_1[0]),",",np.rad2deg(theta_3[0]),",",np.rad2deg((theta_1[0])-theta_3[0]),",",phase_val_new)
       
                           
                     await websocket.send(combined_message)
